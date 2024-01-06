@@ -1,15 +1,17 @@
 <?php
 /**
- * Plugin Name:     Example Plugin
+ * Plugin Name:     Veronalab Sample Plugin
  * Plugin URI:      https://www.veronalabs.com
- * Plugin Prefix:   EXAMPLE_PLUGIN
- * Description:     Example WordPress Plugin Based on Rabbit Framework!
- * Author:          VeronaLabs
+ * Plugin Prefix:   VSP
+ * Description:     A plugin to add a CPT book and book_info table
+ * Author:          Ayoob Zare
  * Author URI:      https://veronalabs.com
- * Text Domain:     example-plugin
+ * Text Domain:     vsp-text-domain
  * Domain Path:     /languages
- * Version:         1.0
+ * Version:         1.0.0
  */
+
+defined('ABSPATH') || exit;
 
 use Rabbit\Application;
 use Rabbit\Redirects\RedirectServiceProvider;
@@ -20,6 +22,8 @@ use Rabbit\Redirects\AdminNotice;
 use Rabbit\Templates\TemplatesServiceProvider;
 use Rabbit\Utils\Singleton;
 use League\Container\Container;
+use App\Src\Vsp_Plugin_Boot;
+
 
 if (file_exists(dirname(__FILE__) . '/vendor/autoload.php')) {
     require dirname(__FILE__) . '/vendor/autoload.php';
@@ -29,7 +33,7 @@ if (file_exists(dirname(__FILE__) . '/vendor/autoload.php')) {
  * Class ExamplePluginInit
  * @package ExamplePluginInit
  */
-class ExamplePluginInit extends Singleton
+class Vsp_Plugin_Init extends Singleton
 {
     /**
      * @var Container
@@ -52,18 +56,19 @@ class ExamplePluginInit extends Singleton
             /**
              * Load service providers
              */
-            $this->application->addServiceProvider(RedirectServiceProvider::class);
+            //$this->application->addServiceProvider(RedirectServiceProvider::class);
             $this->application->addServiceProvider(DatabaseServiceProvider::class);
             $this->application->addServiceProvider(TemplatesServiceProvider::class);
             $this->application->addServiceProvider(LoggerServiceProvider::class);
             // Load your own service providers here...
-
 
             /**
              * Activation hooks
              */
             $this->application->onActivation(function () {
                 // Create tables or something else
+                $this->create_table();
+                
             });
 
             /**
@@ -74,15 +79,10 @@ class ExamplePluginInit extends Singleton
             });
 
             $this->application->boot(function (Plugin $plugin) {
-                $plugin->loadPluginTextDomain();
 
-                // load template
-                $this->application->template('plugin-template.php', ['foo' => 'bar']);
-
-                ///...
+                Vsp_Plugin_Boot::get($this->application);
 
             });
-
         } catch (Exception $e) {
             /**
              * Print the exception message to admin notice area
@@ -105,20 +105,45 @@ class ExamplePluginInit extends Singleton
     /**
      * @return Container
      */
-    public function getApplication()
+    public function get_app()
     {
         return $this->application;
+    }
+
+    /**
+     * create book_info table
+     */
+    public function create_table()
+    {
+        if (!$this->application->has('database')) {
+            return;
+        }
+
+        $db = $this->application->get('database');
+        $schema = $db->schema();
+
+        if (!$schema->hasTable('book_info')) {
+            $schema->create('book_info', function ($table) {
+                $table->bigIncrements('ID');
+                $table->bigInteger('post_id')->unique();
+                $table->string('isbn', 50);
+            });
+        }else{
+            //update table if need
+        }
+
+        update_option('vsp_current_dbv', $this->application->config('db_version'),  'no');
     }
 }
 
 /**
- * Returns the main instance of ExamplePluginInit.
+ * Returns the main instance of VspPluginInit.
  *
- * @return ExamplePluginInit
+ * @return Vsp_Plugin_Init
  */
-function examplePlugin()
+function vsp_plugin_init()
 {
-    return ExamplePluginInit::get();
+    return Vsp_Plugin_Init::get();
 }
 
-examplePlugin();
+vsp_plugin_init();
